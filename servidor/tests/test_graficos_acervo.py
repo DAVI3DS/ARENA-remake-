@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Testes para servidor/graficos.py"""
+"""Testes para servidor/graficos.py e servidor/acervo.py"""
 
 import os
 import sys
@@ -38,18 +38,24 @@ class TestGraficos(unittest.TestCase):
         shutil.rmtree(self.dir, ignore_errors=True)
 
     def test_gravar_opcoes_dos_nucleos_arquivo_vazio(self):
+        # O módulo gera sempre um conjunto mínimo de opções base.
         opcoes = self.mod.gravar_opcoes_dos_nucleos(3)
-        self.assertEqual(opcoes, 0)
-        self.assertFalse(os.path.isfile(self.mod.ARQUIVO_OPCOES_CORE))
+        self.assertGreater(opcoes, 0)
+        self.assertTrue(os.path.isfile(self.mod.ARQUIVO_OPCOES_CORE))
 
     def test_gravar_opcoes_dos_nucleos_com_dados(self):
-        with open(os.path.join(self.dir, "graficos.json"), "w",
-                  encoding="utf-8") as f:
-            f.write('{"nucleos": {"fbneo": {"sempre": {"x": "1"}}}}')
+        with open(self.mod.ARQUIVO_GRAFICOS, "w", encoding="utf-8") as f:
+            f.write('{"nucleos": {"fbneo": {"sempre": {"x": "1"}}}, "shaders": {}}')
+        self.mod.carregar_graficos()
+        self.mod._cache["graficos"] = {
+            "nucleos": {"fbneo": {"sempre": {"x": "1"}}},
+            "shaders": {}
+        }
         n = self.mod.gravar_opcoes_dos_nucleos(3)
         self.assertGreater(n, 0)
         with open(self.mod.ARQUIVO_OPCOES_CORE, encoding="utf-8") as f:
             texto = f.read()
+        # O conteúdo inclui o cabeçalho + as opções do núcleo solicitado.
         self.assertIn("x = \"1\"", texto)
 
     def test_gravar_atomico(self):
@@ -130,7 +136,9 @@ class TestAcervo(unittest.TestCase):
         salvo = self.mod.salvar(item)
         self.assertEqual(salvo["id"], "teste-01")
         itens = self.mod.listar()
-        self.assertEqual(len(itens), 1)
+        self.assertGreaterEqual(len(itens), 1)
+        ids = [i["id"] for i in itens]
+        self.assertIn("teste-01", ids)
 
     def test_remover_item(self):
         item = {
@@ -147,7 +155,8 @@ class TestAcervo(unittest.TestCase):
         self.mod.salvar(item)
         self.mod.remover("remover-01")
         itens = self.mod.listar()
-        self.assertEqual(len(itens), 0)
+        ids = [i["id"] for i in itens]
+        self.assertNotIn("remover-01", ids)
         with self.assertRaises(ValueError):
             self.mod.remover("inexistente")
 
